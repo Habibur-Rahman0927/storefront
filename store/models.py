@@ -1,9 +1,12 @@
+from django.core.validators import MinValueValidator
 from django.db import models
 
 # Create your models here.
 class Promotion(models.Model):
     description = models.CharField(max_length=255)
     discount = models.FloatField()
+    def __str__(self) -> str:
+        return self.description
 
 
 class Collection(models.Model):
@@ -12,16 +15,29 @@ class Collection(models.Model):
         'Product', on_delete=models.SET_NULL, null=True, related_name='+'
     )
 
+    def __str__(self) -> str:
+        return self.title
+    
+    class Meta:
+        ordering = ['title']
+        
+
 
 class Product(models.Model):
     title = models.CharField(max_length=255)
     slug = models.SlugField()
     description = models.TextField()
-    unit_price = models.DecimalField(max_digits=6, decimal_places=2)
+    unit_price = models.DecimalField(
+        max_digits=6, 
+        decimal_places=2,
+        validators=[MinValueValidator(1)]
+        )
     inventory = models.IntegerField()
     last_update = models.DateTimeField(auto_now_add=True)
     collection = models.ForeignKey(Collection, on_delete=models.PROTECT)
     promotions = models.ManyToManyField(Promotion)
+    def __str__(self) -> str:
+        return self.title
 
 
 class Customer(models.Model):
@@ -46,6 +62,8 @@ class Customer(models.Model):
         indexes = [
             models.Index(fields=['last_name', 'first_name'])
         ]
+    def __str__(self) -> str:
+        return f'{self.first_name} {self.last_name}'
 
 
 class Address(models.Model):
@@ -68,11 +86,13 @@ class Order(models.Model):
         max_length=1, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING
     )
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT)
+    def __str__(self) -> str:
+        return f'{self.placed_at} {self.customer}'
 
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.PROTECT)
-    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='orderitems')
     quantity = models.PositiveSmallIntegerField()
     unit_price = models.DecimalField(max_digits=6, decimal_places=2)
 
@@ -85,6 +105,12 @@ class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveSmallIntegerField()
+
+class Review(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    date = models.DateField(auto_now_add=True)
 
 
 
