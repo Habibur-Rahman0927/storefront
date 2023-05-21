@@ -1,14 +1,17 @@
 from django.shortcuts import render, get_object_or_404
 from django.http import  HttpResponse
-from rest_framework.mixins import ListModelMixin, CreateModelMixin
+from rest_framework.mixins import ListModelMixin, CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, DestroyModelMixin
+from rest_framework.viewsets import GenericViewSet
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import action
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework import status
-from .models import Product, OrderItem, Review
-from .serializers import ProductSerializer, ReviewSerializer
+from .models import Product, OrderItem, Review, Customer
+from .serializers import ProductSerializer, ReviewSerializer, CustomerSerializer
 # Create your views here.
 
 
@@ -44,6 +47,30 @@ class ReviewViewSet(ModelViewSet):
     def get_serializer_context(self):
         # print(self.kwargs)
         return {'product_id': self.kwargs['product_pk']}
+    
+class CustomerViewSet(CreateModelMixin, RetrieveModelMixin, UpdateModelMixin, GenericViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+        return [IsAuthenticated()]
+        
+    @action(detail=False, methods=['GET', 'PUT'])
+    def me(self, request):
+        if request.method == 'GET':
+            (customer, created) = Customer.objects.get_or_create(user_id=request.user.id)
+            serializer = CustomerSerializer(customer)
+            return Response(serializer.data)
+        elif request.method == 'PUT':
+            serializer = CustomerSerializer(customer, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
+
     
     # def delete(self, request, pk):
     #     product = get_object_or_404(Product, pk=pk)
